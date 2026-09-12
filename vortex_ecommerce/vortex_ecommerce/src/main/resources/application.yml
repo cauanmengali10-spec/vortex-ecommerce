@@ -20,9 +20,6 @@ spring:
   # Para m�ltiplos paths: aws-parameterstore:/config/application/;/config/wakax-ecommerce/
   config:
     import: ${AWS_PARAMETER_STORE_IMPORT:}
-  docker:
-    compose:
-      file: vortex_ecommerce/docker-compose.dev.yml
   cloud:
     aws:
       parameterstore:
@@ -66,4 +63,3 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-
