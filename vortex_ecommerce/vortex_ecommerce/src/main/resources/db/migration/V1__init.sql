@@ -6,7 +6,7 @@
 -- ------------------------------------------------------------------
 
 CREATE TABLE categorias (
-    id         BIGSERIAL PRIMARY KEY,
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome       VARCHAR(90)  NOT NULL,
     slug       VARCHAR(110) NOT NULL UNIQUE,   -- usado na URL: /mouses
     ativo      BOOLEAN      NOT NULL DEFAULT TRUE,  -- soft delete: esconde sem apagar
@@ -14,7 +14,7 @@ CREATE TABLE categorias (
 );
 
 CREATE TABLE fornecedores (
-    id                   BIGSERIAL PRIMARY KEY,
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome                 VARCHAR(120) NOT NULL,
     cnpj                 VARCHAR(18) UNIQUE,
     nome_contato         VARCHAR(120),
@@ -26,9 +26,9 @@ CREATE TABLE fornecedores (
 );
 
 CREATE TABLE produtos (
-    id                BIGSERIAL PRIMARY KEY,
-    categoria_id      BIGINT REFERENCES categorias (id),
-    fornecedor_id     BIGINT REFERENCES fornecedores (id),  -- 1 fornecedor por produto (simplificação)
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    categoria_id      UUID REFERENCES categorias (id),
+    fornecedor_id     UUID REFERENCES fornecedores (id),  -- 1 fornecedor por produto (simplificação)
     nome              VARCHAR(160) NOT NULL,
     slug              VARCHAR(190) NOT NULL UNIQUE,         -- também pode ser gerado do nome
     descricao_curta   VARCHAR(255),
@@ -43,8 +43,8 @@ CREATE TABLE produtos (
 
 -- "preço de/por": preco = de, preco_promocional = por
 CREATE TABLE variacoes_produto (
-    id                BIGSERIAL PRIMARY KEY,
-    produto_id        BIGINT NOT NULL REFERENCES produtos (id) ON DELETE CASCADE,
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    produto_id        UUID NOT NULL REFERENCES produtos (id) ON DELETE CASCADE,
     sku               VARCHAR(50) NOT NULL UNIQUE,          -- código único de estoque
     nome              VARCHAR(120) NOT NULL,                -- ex.: "Preto", "Switch Red", "XL"
     preco             NUMERIC(12,2) NOT NULL CHECK (preco >= 0),
@@ -61,7 +61,7 @@ CREATE TABLE variacoes_produto (
 -- ------------------------------------------------------------------
 
 CREATE TABLE clientes (
-    id                  BIGSERIAL PRIMARY KEY,
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome                VARCHAR(120) NOT NULL,
     email               VARCHAR(190) NOT NULL UNIQUE,       -- identidade do login OTP
     telefone            VARCHAR(20),
@@ -72,8 +72,8 @@ CREATE TABLE clientes (
 );
 
 CREATE TABLE enderecos (
-    id           BIGSERIAL PRIMARY KEY,
-    cliente_id   BIGINT NOT NULL REFERENCES clientes (id) ON DELETE CASCADE,
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cliente_id   UUID NOT NULL REFERENCES clientes (id) ON DELETE CASCADE,
     rotulo       VARCHAR(60),             -- ex.: "Casa", "Trabalho"
     destinatario VARCHAR(120) NOT NULL,   -- nome de quem recebe
     logradouro   VARCHAR(160) NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE enderecos (
 -- ------------------------------------------------------------------
 
 CREATE TABLE codigos_otp (
-    id         BIGSERIAL PRIMARY KEY,
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email      VARCHAR(190) NOT NULL,
     codigo     VARCHAR(6)   NOT NULL,     -- os 6 dígitos
     finalidade VARCHAR(30)  NOT NULL DEFAULT 'LOGIN',  -- LOGIN / CRIAR_CONTA
@@ -105,9 +105,9 @@ CREATE TABLE codigos_otp (
 -- ------------------------------------------------------------------
 
 CREATE TABLE pedidos (
-    id              BIGSERIAL PRIMARY KEY,
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo          VARCHAR(24) NOT NULL UNIQUE,  -- código de rastreio p/ cliente: ex. VTX-0001
-    cliente_id      BIGINT NOT NULL REFERENCES clientes (id),
+    cliente_id      UUID NOT NULL REFERENCES clientes (id),
     status          VARCHAR(30) NOT NULL DEFAULT 'PENDENTE_PAGAMENTO',
     forma_pagamento VARCHAR(20) NOT NULL,         -- PIX ou CARTAO
     parcelas        INT,                          -- parcelas (só cartão)
@@ -116,7 +116,7 @@ CREATE TABLE pedidos (
     frete           NUMERIC(12,2) NOT NULL DEFAULT 0,   -- 0 quando frete grátis
     total           NUMERIC(12,2) NOT NULL,
     frete_gratis    BOOLEAN NOT NULL DEFAULT FALSE,
-    endereco_id     BIGINT,                       -- snapshot do endereço (não quebra se o cliente editar)
+    endereco_id     UUID,                       -- snapshot do endereço (não quebra se o cliente editar)
     criado_em       TIMESTAMPTZ NOT NULL DEFAULT now(),
     atualizado_em   TIMESTAMPTZ NOT NULL DEFAULT now(),
     pago_em         TIMESTAMPTZ,
@@ -125,9 +125,9 @@ CREATE TABLE pedidos (
 );
 
 CREATE TABLE itens_pedido (
-    id             BIGSERIAL PRIMARY KEY,
-    pedido_id      BIGINT NOT NULL REFERENCES pedidos (id) ON DELETE CASCADE,
-    variacao_id    BIGINT NOT NULL REFERENCES variacoes_produto (id),
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pedido_id      UUID NOT NULL REFERENCES pedidos (id) ON DELETE CASCADE,
+    variacao_id    UUID NOT NULL REFERENCES variacoes_produto (id),
     nome_produto   VARCHAR(160) NOT NULL,   -- snapshot do nome (se o produto mudar, o pedido não muda)
     nome_variacao  VARCHAR(120) NOT NULL,
     sku            VARCHAR(50)  NOT NULL,
@@ -138,8 +138,8 @@ CREATE TABLE itens_pedido (
 );
 
 CREATE TABLE pagamentos (
-    id                     BIGSERIAL PRIMARY KEY,
-    pedido_id              BIGINT NOT NULL UNIQUE REFERENCES pedidos (id) ON DELETE CASCADE,  -- 1 pedido = 1 pagamento
+    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pedido_id              UUID NOT NULL UNIQUE REFERENCES pedidos (id) ON DELETE CASCADE,  -- 1 pedido = 1 pagamento
     metodo                 VARCHAR(20) NOT NULL,      -- PIX / CARTAO
     provedor               VARCHAR(40),               -- gateway: Mercado Pago, Pagar.me...
     id_transacao_gateway   VARCHAR(100),
@@ -156,8 +156,8 @@ CREATE TABLE pagamentos (
 
 -- Rastreamento: cada mudança de status vira uma linha (informação explícita p/ o cliente)
 CREATE TABLE eventos_rastreamento (
-    id          BIGSERIAL PRIMARY KEY,
-    pedido_id   BIGINT NOT NULL REFERENCES pedidos (id) ON DELETE CASCADE,
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pedido_id   UUID NOT NULL REFERENCES pedidos (id) ON DELETE CASCADE,
     status      VARCHAR(30) NOT NULL,
     descricao   VARCHAR(255) NOT NULL,   -- ex.: "Pedido confirmado", "Em transporte p/ CEP 01310-100"
     localizacao VARCHAR(120),            -- cidade/UF do evento de logística
@@ -169,19 +169,19 @@ CREATE TABLE eventos_rastreamento (
 
 -- Toda movimentação é registrada (auditoria): ENTRADA, SAIDA, RESERVADO, LIBERADO, AJUSTE
 CREATE TABLE movimentos_estoque (
-    id           BIGSERIAL PRIMARY KEY,
-    variacao_id  BIGINT NOT NULL REFERENCES variacoes_produto (id) ON DELETE CASCADE,
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    variacao_id  UUID NOT NULL REFERENCES variacoes_produto (id) ON DELETE CASCADE,
     tipo         VARCHAR(20) NOT NULL,
     quantidade   INT NOT NULL,           -- sempre positiva; o tipo diz se entrou ou saiu
-    pedido_id    BIGINT REFERENCES pedidos (id) ON DELETE SET NULL,
+    pedido_id    UUID REFERENCES pedidos (id) ON DELETE SET NULL,
     observacao   VARCHAR(255),           -- ex.: "Reposição fornecedor", "Estorno pedido"
     criado_em    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- "Esgotado — avise-me"
 CREATE TABLE avisos_reposicao (
-    id           BIGSERIAL PRIMARY KEY,
-    variacao_id  BIGINT NOT NULL REFERENCES variacoes_produto (id) ON DELETE CASCADE,
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    variacao_id  UUID NOT NULL REFERENCES variacoes_produto (id) ON DELETE CASCADE,
     email        VARCHAR(190) NOT NULL,
     status       VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',  -- PENDENTE / NOTIFICADO / EXPIRADO
     notificado_em TIMESTAMPTZ,
@@ -192,10 +192,10 @@ CREATE TABLE avisos_reposicao (
 -- ------------------------------------------------------------------
 
 CREATE TABLE avaliacoes (
-    id          BIGSERIAL PRIMARY KEY,
-    produto_id  BIGINT NOT NULL REFERENCES produtos (id) ON DELETE CASCADE,
-    cliente_id  BIGINT NOT NULL REFERENCES clientes (id),
-    pedido_id   BIGINT NOT NULL REFERENCES pedidos (id),   -- prova de compra
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    produto_id  UUID NOT NULL REFERENCES produtos (id) ON DELETE CASCADE,
+    cliente_id  UUID NOT NULL REFERENCES clientes (id),
+    pedido_id   UUID NOT NULL REFERENCES pedidos (id),   -- prova de compra
     nota        INT NOT NULL CHECK (nota BETWEEN 1 AND 5),
     comentario  TEXT,
     criado_em   TIMESTAMPTZ NOT NULL DEFAULT now(),
